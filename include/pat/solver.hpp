@@ -36,6 +36,7 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include <cppcoro/generator.hpp>
 
 #include <fmt/format.h>
 #include <range/v3/action/join.hpp>
@@ -49,138 +50,149 @@
 namespace pat
 {
 
-struct item
-{
-  uint32_t index{};
-  uint32_t llink{};
-  uint32_t rlink{};
-};
-
-struct node
-{
-  union {
-    int32_t len{};
-    int32_t top;
-  };
-  uint32_t ulink{};
-  uint32_t dlink{};
-};
-
-template<typename ItemSelectionFn>
-class solver
-{
-public:
-  explicit solver( uint32_t primary_items, uint32_t secondary_items = 0u, ItemSelectionFn&& item_selection = ItemSelectionFn() )
-      : items( primary_items + secondary_items + 1 ),
-        nodes( primary_items + secondary_items + 2 ),
-        primary_items( primary_items ),
-        secondary_items( secondary_items ),
-        num_items( primary_items + secondary_items ),
-        item_selection( std::move( item_selection ) )
-  {
-    initialize_items();
-  }
-
-  template<class Items>
-  void add_option( const Items& opt_items )
-  {
-    /* store current last item */
-    const auto p = nodes.size() - 1;
-    auto k = 0u;
-
-    for ( auto j : opt_items )
+    struct item
     {
-      if ( j < 1 || j > items.size() )
-      {
-        assert( false );
-      }
-      nodes[j].len++;
-      const auto q = nodes[j].ulink;
-      nodes[j].ulink = nodes[q].dlink = nodes.size();
+        uint32_t index{};
+        uint32_t llink{};
+        uint32_t rlink{};
+    };
 
-      node next_node;
-      next_node.ulink = q;
-      next_node.dlink = j;
-      next_node.top = j;
-
-      nodes.push_back( next_node );
-      ++k;
-    }
-
-    ++m;
-    nodes[p].dlink = p + k;
-
-    /* next spacer */
-    node spacer;
-    spacer.top = -m;
-    spacer.ulink = p + 1;
-    nodes.push_back( spacer );
-  }
-
-  template<typename Fn = decltype( just_count )>
-  uint32_t solve( Fn&& fn = just_count )
-  {
-    uint32_t l = 0, i = 0, solutions = 0;
-    std::vector<uint32_t> xs( items.size() );
-
-    while ( true )
+    struct node
     {
-      /* all items have been chose */
-      if ( items[0].rlink == 0 )
-      {
-        ++solutions;
-        if ( !fn( xs.cbegin(), xs.cbegin() + l ) )
+        union {
+            int32_t len{};
+            int32_t top;
+        };
+        uint32_t ulink{};
+        uint32_t dlink{};
+    };
+
+    template<typename ItemSelectionFn>
+    class solver
+    {
+    public:
+        explicit solver( const uint32_t primary_items, const uint32_t secondary_items = 0u)
+                : items( primary_items + secondary_items + 1 ),
+                  nodes( primary_items + secondary_items + 2 ),
+                  primary_items( primary_items ),
+                  secondary_items( secondary_items ),
+                  num_items( primary_items + secondary_items )
         {
-          return solutions;
+            initialize_items();
         }
-        goto check_last;
-      }
 
-      /* choose next item i */
-      i = item_selection( items, nodes );
+        template<class Items>
+        void add_option( const Items& opt_items )
+        {
+            /* store current last item */
+            const auto p = nodes.size() - 1;
+            auto k = 0u;
 
-      /* cover i */
-      cover( i );
-      xs[l] = nodes[i].dlink;
+            for ( auto j : opt_items )
+            {
+                if ( j < 1 || j > items.size() )
+                {
+                    assert( false );
+                }
+                nodes[j].len++;
+                const auto q = nodes[j].ulink;
+                nodes[j].ulink = nodes[q].dlink = nodes.size();
 
-      while ( xs[l] == i ) /* we tried all options for item i */
-      {
-        uncover( i );
+                node next_node;
+                next_node.ulink = q;
+                next_node.dlink = j;
+                next_node.top = j;
 
-      check_last:
-        if ( l == 0 )
-          return solutions;
+                nodes.push_back( next_node );
+                ++k;
+            }
 
-        /* uncovers items in option */
-        --l;
-        uncover_option( xs[l] );
+            ++m;
+            nodes[p].dlink = p + k;
 
-        /* next i */
-        i = nodes[xs[l]].top;
-        xs[l] = nodes[xs[l]].dlink;
-      }
+            /* next spacer */
+            node spacer;
+            spacer.top = -m;
+            spacer.ulink = p + 1;
+            nodes.push_back( spacer );
+        }
 
-      /* cover items in option */
-      cover_option( xs[l] );
-      ++l;
-    }
+        cppcoro::generator<std::vector<uint32_t>> solve()
+        {
+            uint32_t l = 0, i = 0;
+            std::vector<uint32_t> xs( items.size() );
 
-    /* we'll never reach here */
-    return solutions;
-  }
+            while ( true )
+            {
+//                 all items have been chosen
+                if ( items[0].rlink == 0 )
+                {
+                    std::vector< uint32_t > solution;
+                    for ( auto it = xs.cbegin(); it != xs.cbegin() + l; ++it ){
+                      solution.push_back(option_index( *it ));
+                    }
+                    co_yield solution;
+                    goto check_last;
+                }
 
-  inline uint32_t option_index( uint32_t i )
-  {
-    auto q = i - 1;
-    while ( nodes[q].top > 0 )
-    {
-      --q;
-    }
-    return -nodes[q].top;
-  }
+//                 choose next item i
+                i = item_selection( items, nodes );
+
+//                 cover i
+                cover( i );
+                xs[l] = nodes[i].dlink;
+
+                while ( xs[l] == i )  //we tried all options for item i
+                {
+                    uncover( i );
+
+                    check_last:
+                    if ( l == 0 )
+                        co_return;
+
+//                     uncovers items in option
+                    --l;
+                    uncover_option( xs[l] );
+
+//                     next i
+                    i = nodes[xs[l]].top;
+                    xs[l] = nodes[xs[l]].dlink;
+                }
+
+//                 cover items in option
+                cover_option( xs[l] );
+                ++l;
+            }
+
+//             we'll never reach here
+        }
+
+        inline uint32_t option_index( uint32_t i )
+        {
+            auto q = i - 1;
+            while ( nodes[q].top > 0 )
+            {
+                --q;
+            }
+            return -nodes[q].top;
+        }
+
+//        std::vector< std::vector< uint32_t >> get_solutions(){
+//        std::vector< std::vector< uint32_t >> solutions;
+//        solve( [this, &solutions]( const auto& begin, const auto& end ) {
+//                                           std::vector< uint32_t > solution;
+//                                           for ( auto it = begin; it != end; ++it ){
+//                                               solution.push_back(option_index( *it ));
+//                                           }
+//                                           solutions.push_back(solution);
+//                                           return true;
+//                                       });
+//        return solutions;
+//        }
+
 
 #if 0
-  /* debug */
+        /* debug */
 public:
   void print_contents( std::ostream& os = std::cout )
   {
@@ -218,153 +230,153 @@ public:
   }
 #endif
 
-private:
-  void initialize_items()
-  {
-    /* initialize linked list of top items */
-    for ( auto i = 1u; i <= num_items; ++i )
-    {
-      items[i].index = i;
-      items[i].llink = i - 1;
-      items[i - 1].rlink = i;
+    private:
+        void initialize_items()
+        {
+            /* initialize linked list of top items */
+            for ( auto i = 1u; i <= num_items; ++i )
+            {
+                items[i].index = i;
+                items[i].llink = i - 1;
+                items[i - 1].rlink = i;
 
-      nodes[i].len = 0;
-      nodes[i].ulink = nodes[i].dlink = i;
-    }
+                nodes[i].len = 0;
+                nodes[i].ulink = nodes[i].dlink = i;
+            }
 
-    items[0].llink = primary_items;
-    items[primary_items].rlink = 0;
-    if ( secondary_items != 0 )
-    {
-      items[primary_items + 1].llink = num_items;
-      items[num_items].rlink = primary_items + 1;
-    }
+            items[0].llink = primary_items;
+            items[primary_items].rlink = 0;
+            if ( secondary_items != 0 )
+            {
+                items[primary_items + 1].llink = num_items;
+                items[num_items].rlink = primary_items + 1;
+            }
 
-    /* spacer */
-    nodes[num_items + 1].top = 0;
-  }
+            /* spacer */
+            nodes[num_items + 1].top = 0;
+        }
 
-  inline void cover( uint32_t i )
-  {
-    auto p = nodes[i].dlink;
-    while ( p != i )
-    {
-      hide( p );
-      p = nodes[p].dlink;
-    }
+        inline void cover( uint32_t i )
+        {
+            auto p = nodes[i].dlink;
+            while ( p != i )
+            {
+                hide( p );
+                p = nodes[p].dlink;
+            }
 
-    /* dancing links */
-    const auto l = items[i].llink;
-    const auto r = items[i].rlink;
-    items[l].rlink = r;
-    items[r].llink = l;
-  }
+            /* dancing links */
+            const auto l = items[i].llink;
+            const auto r = items[i].rlink;
+            items[l].rlink = r;
+            items[r].llink = l;
+        }
 
-  inline void uncover( uint32_t i )
-  {
-    const auto l = items[i].llink;
-    const auto r = items[i].rlink;
-    items[l].rlink = i;
-    items[r].llink = i;
-    auto p = nodes[i].ulink;
-    while ( p != i )
-    {
-      unhide( p );
-      p = nodes[p].ulink;
-    }
-  }
+        inline void uncover( uint32_t i )
+        {
+            const auto l = items[i].llink;
+            const auto r = items[i].rlink;
+            items[l].rlink = i;
+            items[r].llink = i;
+            auto p = nodes[i].ulink;
+            while ( p != i )
+            {
+                unhide( p );
+                p = nodes[p].ulink;
+            }
+        }
 
-  inline void hide( uint32_t i )
-  {
-    auto q = i + 1;
+        inline void hide( uint32_t i )
+        {
+            auto q = i + 1;
 
-    while ( q != i )
-    {
-      auto x = nodes[q].top;
-      const auto u = nodes[q].ulink;
-      const auto d = nodes[q].dlink;
-      if ( x <= 0 )
-      {
-        q = u;
-      }
-      else
-      {
-        nodes[u].dlink = d;
-        nodes[d].ulink = u;
-        nodes[x].len--;
-        ++q;
-      }
-    }
-  }
+            while ( q != i )
+            {
+                auto x = nodes[q].top;
+                const auto u = nodes[q].ulink;
+                const auto d = nodes[q].dlink;
+                if ( x <= 0 )
+                {
+                    q = u;
+                }
+                else
+                {
+                    nodes[u].dlink = d;
+                    nodes[d].ulink = u;
+                    nodes[x].len--;
+                    ++q;
+                }
+            }
+        }
 
-  inline void unhide( uint32_t i )
-  {
-    auto q = i - 1;
+        inline void unhide( uint32_t i )
+        {
+            auto q = i - 1;
 
-    while ( q != i )
-    {
-      auto x = nodes[q].top;
-      const auto u = nodes[q].ulink;
-      const auto d = nodes[q].dlink;
-      if ( x <= 0 )
-      {
-        q = d;
-      }
-      else
-      {
-        nodes[u].dlink = q;
-        nodes[d].ulink = q;
-        nodes[x].len++;
-        --q;
-      }
-    }
-  }
+            while ( q != i )
+            {
+                auto x = nodes[q].top;
+                const auto u = nodes[q].ulink;
+                const auto d = nodes[q].dlink;
+                if ( x <= 0 )
+                {
+                    q = d;
+                }
+                else
+                {
+                    nodes[u].dlink = q;
+                    nodes[d].ulink = q;
+                    nodes[x].len++;
+                    --q;
+                }
+            }
+        }
 
-  inline void cover_option( uint32_t i )
-  {
-    auto p = i + 1;
-    while ( p != i )
-    {
-      auto j = nodes[p].top;
-      if ( j <= 0 )
-      {
-        p = nodes[p].ulink;
-      }
-      else
-      {
-        cover( j );
-        ++p;
-      }
-    }
-  }
+        inline void cover_option( uint32_t i )
+        {
+            auto p = i + 1;
+            while ( p != i )
+            {
+                auto j = nodes[p].top;
+                if ( j <= 0 )
+                {
+                    p = nodes[p].ulink;
+                }
+                else
+                {
+                    cover( j );
+                    ++p;
+                }
+            }
+        }
 
-  inline void uncover_option( uint32_t i )
-  {
-    auto p = i - 1;
-    while ( p != i )
-    {
-      auto j = nodes[p].top;
-      if ( j <= 0 )
-      {
-        p = nodes[p].dlink;
-      }
-      else
-      {
-        uncover( j );
-        --p;
-      }
-    }
-  }
+        inline void uncover_option( uint32_t i )
+        {
+            auto p = i - 1;
+            while ( p != i )
+            {
+                auto j = nodes[p].top;
+                if ( j <= 0 )
+                {
+                    p = nodes[p].dlink;
+                }
+                else
+                {
+                    uncover( j );
+                    --p;
+                }
+            }
+        }
 
-private:
-  std::vector<item> items;
-  std::vector<node> nodes;
+    private:
+        std::vector<item> items;
+        std::vector<node> nodes;
 
-  uint32_t primary_items;
-  uint32_t secondary_items;
-  uint32_t num_items;
-  int32_t m = 0;
+        uint32_t primary_items;
+        uint32_t secondary_items;
+        uint32_t num_items;
+        int32_t m = 0;
 
-  ItemSelectionFn&& item_selection;
-};
+        ItemSelectionFn&& item_selection = std::move( item_selection );
+    };
 }
