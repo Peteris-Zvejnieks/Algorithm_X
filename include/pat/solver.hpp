@@ -47,6 +47,9 @@
 #include "detail/range.hpp"
 #include "solution_callbacks.hpp"
 
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+
 namespace pat
 {
 
@@ -70,6 +73,9 @@ namespace pat
     template<typename ItemSelectionFn>
     class solver
     {
+        cppcoro::generator<std::vector<uint32_t>> generator;
+        cppcoro::detail::generator_iterator<std::vector<uint32_t> > iter;
+        cppcoro::detail::generator_sentinel end;
     public:
         explicit solver( const uint32_t primary_items, const uint32_t secondary_items = 0u)
                 : items( primary_items + secondary_items + 1 ),
@@ -115,6 +121,41 @@ namespace pat
             spacer.top = -m;
             spacer.ulink = p + 1;
             nodes.push_back( spacer );
+        }
+
+        void make_generator(){
+            generator = this->solve();
+            iter = generator.begin();
+            end = generator.end();
+        }
+
+        std::vector<uint32_t> get_next(){
+            if (iter == end) throw py::stop_iteration("end reached");
+            py::gil_scoped_release release;
+            std::vector<uint32_t> solution = *iter;
+            ++iter;
+            return solution;
+        }
+
+        std::vector<std::vector<uint32_t>> get_next_batch(uint32_t num = 100u){
+            if (iter == end) throw py::stop_iteration("end reached");
+            py::gil_scoped_release release;
+            std::vector<std::vector<uint32_t>> solutions;
+            for(uint32_t i = 0; i < num; i++){
+                if (iter == end) break;
+                std::vector<uint32_t> solution = *iter;
+                solutions.push_back(std::move(solution));
+                ++iter;
+            }
+            return solutions;
+        }
+
+        uint32_t get_number_of_solutions(){
+            uint32_t number_of_solutions = 0;
+            for (std::vector<uint32_t> solution : solve()){
+                number_of_solutions ++;
+            }
+            return number_of_solutions;
         }
 
         cppcoro::generator<std::vector<uint32_t>> solve()
