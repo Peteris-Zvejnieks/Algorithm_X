@@ -35,6 +35,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include <cppcoro/generator.hpp>
 
@@ -88,18 +89,23 @@ namespace pat
         }
 
         template<class Items>
-        void add_option( const Items& opt_items )
+        void add_option(std::vector<uint32_t> opt_items)
         {
+
+            /*Error checking*/
+            std::stable_sort(opt_items.begin(),  opt_items.end());
+            bool containsDuplicates = (std::unique( opt_items.begin(),  opt_items.end()) !=  opt_items.end());
+
+            if (containsDuplicates) throw pybind11::value_error("Subset must only contain unique values");
+            if (* opt_items.begin() == 0u) throw pybind11::value_error("Elements must range from 1");
+            if (opt_items.back() > num_items) throw pybind11::value_error("Elements cant be larger than size");
+
             /* store current last item */
             const auto p = nodes.size() - 1;
             auto k = 0u;
 
             for ( auto j : opt_items )
             {
-                if ( j < 1 || j > items.size() )
-                {
-                    assert( false );
-                }
                 nodes[j].len++;
                 const auto q = nodes[j].ulink;
                 nodes[j].ulink = nodes[q].dlink = nodes.size();

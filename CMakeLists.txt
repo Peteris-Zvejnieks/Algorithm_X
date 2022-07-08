@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(DancingLinks)
+enable_language(C)
+enable_language(CXX)
 
 include(FetchContent)
 
@@ -51,12 +53,15 @@ endif()
 
 add_subdirectory(lib)
 include_directories(lib)
+
 add_subdirectory(include)
 include_directories(include)
+
 include_directories(lib/fmt)
 include_directories(test/catch2)
 
 set(SOURCE_FILES DancingLinks.cpp)
+
 pybind11_add_module(DancingLinks ${SOURCE_FILES})
 
 #set(SOURCE_FILES test/exact_cover.cpp)
