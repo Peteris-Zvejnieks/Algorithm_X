@@ -39,14 +39,10 @@
 #include <vector>
 #include <cppcoro/generator.hpp>
 
-#include <fmt/format.h>
 #include <range/v3/action/join.hpp>
 #include <range/v3/core.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/zip_with.hpp>
-
-#include "detail/range.hpp"
-#include "solution_callbacks.hpp"
 
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
@@ -88,7 +84,6 @@ namespace pat
             initialize_items();
         }
 
-        template<class Items>
         void add_option(std::vector<uint32_t> opt_items)
         {
 
@@ -223,59 +218,6 @@ namespace pat
             }
             return -nodes[q].top;
         }
-
-//        std::vector< std::vector< uint32_t >> get_solutions(){
-//        std::vector< std::vector< uint32_t >> solutions;
-//        solve( [this, &solutions]( const auto& begin, const auto& end ) {
-//                                           std::vector< uint32_t > solution;
-//                                           for ( auto it = begin; it != end; ++it ){
-//                                               solution.push_back(option_index( *it ));
-//                                           }
-//                                           solutions.push_back(solution);
-//                                           return true;
-//                                       });
-//        return solutions;
-//        }
-
-
-#if 0
-        /* debug */
-public:
-  void print_contents( std::ostream& os = std::cout )
-  {
-    /* seperation rule */
-    std::string rule( 5 * items.size() + 9, '-' );
-
-    /* items */
-    os << rule << std::endl
-       << "       i:" << ( ranges::view::ints( size_t( 0 ), items.size() ) | detail::pad() | ranges::action::join ) << std::endl
-       << "llink(i):" << ( items | detail::pad( []( auto i ) { return i.llink; } ) | ranges::action::join ) << std::endl
-       << "rlink(i):" << ( items | detail::pad( []( auto i ) { return i.rlink; } ) | ranges::action::join ) << std::endl
-       << rule << std::endl;
-
-    /* nodes */
-    const auto indexes = ranges::view::ints( size_t( 0 ), nodes.size() ) |
-                         detail::pad() |
-                         detail::split_and_prefix( items.size(), "       x:" );
-
-    const auto tops = nodes |
-                      detail::pad( []( auto n ) { return n.top; } ) |
-                      detail::split_and_prefix( items.size(), "  top(x):" );
-
-    const auto ulinks = nodes |
-                        detail::pad( []( auto n ) { return n.ulink; } ) |
-                        detail::split_and_prefix( items.size(), "ulink(x):" );
-
-    const auto dlinks = nodes |
-                        detail::pad( []( auto n ) { return n.dlink; } ) |
-                        detail::split_and_prefix( items.size(), "dlink(x):" );
-
-    os << ( ranges::view::zip_with( [&rule]( const auto& l1, const auto& l2, const auto& l3, const auto& l4 ) { return l1 + l2 + l3 + l4 + rule + "\n"; },
-                                    indexes, tops, ulinks, dlinks ) |
-            ranges::action::join )
-       << std::endl;
-  }
-#endif
 
     private:
         void initialize_items()

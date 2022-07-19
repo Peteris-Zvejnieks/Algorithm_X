@@ -6,6 +6,7 @@ enable_language(CXX)
 include(FetchContent)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 
 #range_v3
@@ -49,20 +50,10 @@ if(NOT cppcoro_POPULATED)
     include_directories(${cppcoro_SOURCE_DIR}/include)
 endif()
 
+add_subdirectory(src)
+include_directories(src)
 
 
-add_subdirectory(lib)
-include_directories(lib)
-
-add_subdirectory(include)
-include_directories(include)
-
-include_directories(lib/fmt)
-include_directories(test/catch2)
-
-set(SOURCE_FILES DancingLinks.cpp)
+set(SOURCE_FILES src/DancingLinks.cpp)
 
 pybind11_add_module(DancingLinks ${SOURCE_FILES})
-
-#set(SOURCE_FILES test/exact_cover.cpp)
-#add_executable(exact_cover ${SOURCE_FILES})

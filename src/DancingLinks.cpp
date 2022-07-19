@@ -16,7 +16,7 @@ PYBIND11_MODULE(DancingLinks, m) {
                     py::arg("primary_items"),
                     py::arg("secondary_items") = 0u)
             .def("add_subset",
-                 &default_solver::add_option<std::vector<uint32_t>>, py::arg("subset"))
+                 &default_solver::add_option, py::arg("subset"))
             .def("make_generator",
                  &default_solver::make_generator)
             .def("__next__",

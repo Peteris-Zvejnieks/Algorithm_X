@@ -33,6 +33,5 @@
 #pragma once
 
 #include "item_selection.hpp"
-#include "solution_callbacks.hpp"
 #include "solver.hpp"
 #include "solver_types.hpp"

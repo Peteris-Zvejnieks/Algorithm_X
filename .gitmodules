@@ -1,6 +1,0 @@
-[submodule "lib/range-v3"]
-	path = lib/range-v3
-	url = https://github.com/ericniebler/range-v3.git
-[submodule "bench/benchmark"]
-	path = bench/benchmark
-	url = https://github.com/google/benchmark.git
