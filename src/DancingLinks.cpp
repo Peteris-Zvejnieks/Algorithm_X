@@ -9,7 +9,7 @@ using namespace std;
 namespace py = pybind11;
 
 
-PYBIND11_MODULE(DancingLinks, m) {
+PYBIND11_MODULE(DancingLinks_cpp, m) {
     m.doc()  = "Python module of C++20 based implementations of dancing link algorithms (as described by Donald E. Knuth in *The Art of Computer Programming*) for various kinds of cover problem";
     py::class_<default_solver>(m, "DLX")
             .def(py::init<uint32_t, uint32_t>(),
