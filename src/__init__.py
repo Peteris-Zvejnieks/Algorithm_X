@@ -1,6 +1,6 @@
-from DancingLinks import DLX
+from DancingLinks import DLX as DLX_
 
-class Algorithm_X(DLX):
+class DLX(DLX_):
     def __init__(self, primary_items: int, secondary_items: int = 0):
         super().__init__(primary_items, secondary_items)
 

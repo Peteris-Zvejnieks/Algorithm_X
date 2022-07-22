@@ -1,6 +1,6 @@
 def leafy_majority_graphs(n: int):
     subsets = []
-    secondary_items = ( n * ( n - 1 ) ) /
+    secondary_items = (n * (n - 1)) // 2
     offset = n
     for i in range(1, n + 1):
         subsets.append([i])
