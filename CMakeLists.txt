@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(DancingLinks VERSION 0.1.0)
+project(DancingLinks_cpp VERSION 0.1.0)
 enable_language(CXX)
 
 include(FetchContent)
@@ -19,6 +19,15 @@ include_directories(SYSTEM lib/range-v3/include)
 add_subdirectory(src)
 include_directories(SYSTEM src)
 
-pybind11_add_module(DancingLinks_cpp src/DancingLinks.cpp)
+pybind11_add_module(DancingLinks src/DancingLinks.cpp)
 
-#target_compile_definitions(cmake_example PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
+set_target_properties(DancingLinks PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src
+        OUTPUT_NAME "DancingLinks_cpp")
+
+install(
+        TARGETS DancingLinks
+        COMPONENT DancingLinks_cpp
+        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
